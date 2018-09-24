@@ -10,6 +10,7 @@ module AliquotPay
 
   DEFAULTS = {
     info: 'Google',
+    merchant_id: 'merchant:0123456789',
   }.freeze
 
   def self.sign(key, encrypted_message)
@@ -46,18 +47,19 @@ module AliquotPay
   )
     id = Base64.strict_encode64(OpenSSL::Random.random_bytes(24))
     p = {
-      'messageExpiration' => expiration,
-      'messageId' => id,
+      'messageExpiration'    => expiration,
+      'messageId'            => id,
+      'paymentMethod'        => 'CARD',
       'paymentMethodDetails' => {
-        'expirationYear' =>  2023,
+        'expirationYear'  => 2023,
         'expirationMonth' => 12,
-        'pan' =>             '4111111111111111',
-        'authMethod' =>      'PAN_ONLY',
+        'pan'             => '4111111111111111',
+        'authMethod'      => 'PAN_ONLY',
       },
     }
 
     if auth_method == :CRYPTOGRAM_3DS
-      p['paymentMethodDetails']['auth_method']  = 'CRYPTOGRAM_3DS'
+      p['paymentMethodDetails']['authMethod']   = 'CRYPTOGRAM_3DS'
       p['paymentMethodDetails']['cryptogram']   = 'SOME CRYPTOGRAM'
       p['paymentMethodDetails']['eciIndicator'] = '05'
     end
@@ -72,8 +74,8 @@ module AliquotPay
 
   def self.signature_string(
     message,
-    recipient_id = 'merchant:0123456789',
-    sender_id = DEFAULTS[:info],
+    recipient_id     = DEFAULTS[:merchant_id],
+    sender_id        = DEFAULTS[:info],
     protocol_version = 'ECv1'
   )
 
@@ -85,5 +87,21 @@ module AliquotPay
       protocol_version +
       four_byte_length(message) +
       message
+  end
+
+  # payment:: Google Pay token as a ruby Hash
+  # signing_key:: OpenSSL::PKEY::EC
+  # recipient::   OpenSSL::PKey::EC
+  # message::     SignedMessage
+  def self.generate_token(payment, signing_key, recipient, message = nil)
+    message ||= AliquotPay.encrypt(JSON.unparse(payment), recipient)
+
+    signature_string = AliquotPay.signature_string(JSON.unparse(message))
+
+    {
+      'protocolVersion' => 'ECv1',
+      'signature' =>       AliquotPay.sign(signing_key, signature_string),
+      'signedMessage' =>   JSON.unparse(message),
+    }
   end
 end

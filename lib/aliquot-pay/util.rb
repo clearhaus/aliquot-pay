@@ -9,8 +9,8 @@ module AliquotPay
       OpenSSL::PKey::EC.new(AliquotPay::EC_CURVE).generate_key
     end
 
-    def self.generate_shared_secret(ephemeral_key, public_key)
-      ephemeral_key.dh_compute_key(public_key)
+    def self.generate_shared_secret(private_key, public_key)
+      private_key.dh_compute_key(public_key)
     end
 
     def self.derive_keys(ephemeral_public_key, shared_secret, info)
