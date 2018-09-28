@@ -1,8 +1,6 @@
 require 'openssl'
 require 'hkdf'
 
-require 'pry'
-
 module AliquotPay
   class Util
     def self.generate_ephemeral_key
