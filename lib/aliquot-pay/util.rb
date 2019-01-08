@@ -12,8 +12,13 @@ module AliquotPay
     end
 
     def self.derive_keys(ephemeral_public_key, shared_secret, info)
-      ikm = ephemeral_public_key + shared_secret
-      hbytes = HKDF.new(ikm, algorithm: 'SHA256', info: info).next_bytes(32)
+      input_keying_material = ephemeral_public_key + shared_secret
+      if OpenSSL.const_defined?(:KDF) && OpenSSL::KDF.respond_to?(:hkdf)
+        h = OpenSSL::Digest::SHA256.new
+        hbytes = OpenSSL::KDF.hkdf(input_keying_material, hash: h, salt: '', length: 32, info: info)
+      else
+        hbytes = HKDF.new(input_keying_material, algorithm: 'SHA256', info: info).next_bytes(32)
+      end
 
       {
         aes_key: hbytes[0..15],
