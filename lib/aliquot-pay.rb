@@ -90,18 +90,18 @@ module AliquotPay
   end
 
   # payment:: Google Pay token as a ruby Hash
-  # signing_key:: OpenSSL::PKEY::EC
-  # recipient::   OpenSSL::PKey::EC
-  # message::     SignedMessage
-  def self.generate_token(payment, signing_key, recipient, message = nil)
-    message ||= AliquotPay.encrypt(JSON.unparse(payment), recipient)
+  # signing_key::           OpenSSL::PKEY::EC
+  # recipient::             OpenSSL::PKey::EC
+  # encrypted_message::     SignedMessage
+  def self.generate_token(payment, signing_key, recipient, signed_message = nil)
+    signed_message ||= JSON.unparse(AliquotPay.encrypt(JSON.unparse(payment), recipient))
 
-    signature_string = AliquotPay.signature_string(JSON.unparse(message))
+    signature_string = AliquotPay.signature_string(signed_message)
 
     {
       'protocolVersion' => 'ECv1',
       'signature' =>       AliquotPay.sign(signing_key, signature_string),
-      'signedMessage' =>   JSON.unparse(message),
+      'signedMessage' =>   signed_message,
     }
   end
 end
