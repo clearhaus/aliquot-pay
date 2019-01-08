@@ -3,7 +3,7 @@
 
 Gem::Specification.new do |s|
   s.name     = 'aliquot-pay'
-  s.version  = '0.5.0'
+  s.version  = '0.6.0'
   s.author   = 'Clearhaus'
   s.email    = 'hello@clearhaus.com'
   s.summary  = 'Generates Google Pay test dummy tokens'
