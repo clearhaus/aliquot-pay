@@ -11,7 +11,7 @@ module AliquotPay
 
   DEFAULTS = {
     info: 'Google',
-    merchant_id: 'merchant:0123456789',
+    merchant_id: '0123456789',
   }.freeze
 
   def self.sign(key, message)
