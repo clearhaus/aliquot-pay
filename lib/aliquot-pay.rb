@@ -80,7 +80,7 @@ module AliquotPay
 
   def self.signature_string(
     message,
-    recipient_id:     DEFAULTS[:merchant_id],
+    recipient_id:     "merchant:#{DEFAULTS[:merchant_id]}",
     sender_id:        DEFAULTS[:info],
     protocol_version: 'ECv1'
   )
