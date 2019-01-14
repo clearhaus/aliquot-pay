@@ -10,15 +10,14 @@ describe AliquotPay do
     recipient = OpenSSL::PKey::EC.new('prime256v1').generate_key
 
     payment = AliquotPay.payment
-    cipher = OpenSSL::Cipher::AES128.new(:CTR)
-    message = AliquotPay.encrypt(JSON.unparse(payment), recipient, cipher)
+    message = AliquotPay.encrypt(payment.to_json, recipient, :ECv1)
 
-    signature_string = AliquotPay.signature_string(JSON.unparse(message))
+    signature_string = AliquotPay.signature_string(message.to_json)
 
     token = {
       'protocolVersion' => 'ECv1',
       'signature' =>       AliquotPay.sign(key, signature_string),
-      'signedMessage' =>   JSON.unparse(message),
+      'signedMessage' =>   message.to_json,
     }
   end
 
@@ -28,6 +27,6 @@ describe AliquotPay do
     root_key = OpenSSL::PKey::EC.new('prime256v1').generate_key
     intermediate_key = OpenSSL::PKey::EC.new('prime256v1').generate_key
 
-    AliquotPay.generate_token_ecv2(payment, root_key, intermediate_key, recipient, nil)
+    AliquotPay.generate_token_ecv2(payment, root_key, intermediate_key, recipient)
   end
 end

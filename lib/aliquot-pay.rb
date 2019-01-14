@@ -20,11 +20,20 @@ module AliquotPay
     Base64.strict_encode64(key.sign(d, message))
   end
 
-  def self.encrypt(cleartext_message, recipient, cipher, info = 'Google')
+  def self.encrypt(cleartext_message, recipient, protocol_version, info = 'Google')
     eph = AliquotPay::Util.generate_ephemeral_key
     ss  = AliquotPay::Util.generate_shared_secret(eph, recipient.public_key)
 
-    keys = AliquotPay::Util.derive_keys(eph.public_key.to_bn.to_s(2), ss, info, length: cipher.key_len)
+    case protocol_version
+    when :ECv1
+      cipher = OpenSSL::Cipher::AES128.new(:CTR)
+    when :ECv2
+      cipher = OpenSSL::Cipher::AES256.new(:CTR)
+    else
+      raise StandardError, "Invalid protocol_version #{protocol_version}"
+    end
+
+    keys = AliquotPay::Util.derive_keys(eph.public_key.to_bn.to_s(2), ss, info, protocol_version)
 
     cipher.encrypt
     cipher.key = keys[:aes_key]
@@ -75,17 +84,17 @@ module AliquotPay
   def self.generate_signature(*args)
     args.map do |s|
       four_byte_length(s) + s
-    end.join('')
+    end.join
   end
 
   def self.signature_string(
     message,
-    recipient_id:     "merchant:#{DEFAULTS[:merchant_id]}",
+    merchant_id:      DEFAULTS[:merchant_id],
     sender_id:        DEFAULTS[:info],
     protocol_version: 'ECv1'
   )
 
-    generate_signature(sender_id, recipient_id, protocol_version, message)
+    generate_signature(sender_id, "merchant:#{merchant_id}", protocol_version, message)
   end
 
   # payment::        Google Pay token as a ruby Hash
@@ -93,8 +102,7 @@ module AliquotPay
   # recipient::      OpenSSL::PKey::EC
   # signed_message:: Pass a customized message to sign as signed messaged.
   def self.generate_token_ecv1(payment, signing_key, recipient, signed_message = nil)
-    cipher = OpenSSL::Cipher::AES128.new(:CTR)
-    signed_message ||= JSON.unparse(encrypt(JSON.unparse(payment), recipient, cipher))
+    signed_message ||= encrypt(payment.to_json, recipient, :ECv1).to_json
     signature_string = signature_string(signed_message)
 
     {
@@ -106,17 +114,16 @@ module AliquotPay
 
   def self.generate_token_ecv2(payment, signing_key, intermediate_key, recipient,
                                signed_message: nil, expire_time:  "#{Time.now.to_i + 3600}000")
-    cipher = OpenSSL::Cipher::AES256.new(:CTR)
-    signed_message ||= JSON.unparse(encrypt(JSON.unparse(payment), recipient, cipher))
+    signed_message ||= encrypt(payment.to_json, recipient, :ECv2).to_json
     sig = signature_string(signed_message, protocol_version: 'ECv2')
 
     intermediate_pub = OpenSSL::PKey::EC.new(EC_CURVE)
     intermediate_pub.public_key = intermediate_key.public_key
 
-    signed_key = JSON.unparse(
+    signed_key = {
       'keyExpiration' => expire_time,
       'keyValue'      => Base64.strict_encode64(intermediate_pub.to_der)
-    )
+    }.to_json
 
     ik_signature_string = generate_signature('Google', 'ECv2', signed_key)
     signatures = [sign(signing_key, ik_signature_string)]
