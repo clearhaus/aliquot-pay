@@ -1,7 +1,7 @@
 require 'openssl'
 require 'hkdf'
 
-module AliquotPay
+class AliquotPay
   class Util
     def self.generate_ephemeral_key
       OpenSSL::PKey::EC.new(AliquotPay::EC_CURVE).generate_key

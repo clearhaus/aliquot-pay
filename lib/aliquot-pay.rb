@@ -4,7 +4,7 @@ require 'json'
 
 require 'aliquot-pay/util'
 
-module AliquotPay
+class AliquotPay
   class Error < StandardError; end
 
   EC_CURVE = 'prime256v1'.freeze
@@ -13,6 +13,21 @@ module AliquotPay
     info: 'Google',
     merchant_id: '0123456789',
   }.freeze
+
+  attr_accessor :signature, :intermediate_signing_key, :signed_message
+  attr_accessor :signed_key, :signatures
+  attr_accessor :key_expiration, :key_value
+  attr_accessor :encrypted_message, :cleartext_message, :ephemeral_public_key, :tag
+  attr_accessor :message_expiration, :message_id, :payment_method, :payment_method_details
+  attr_accessor :pan, :expiration_month, :expiration_year, :auth_method
+  attr_accessor :cryptogram, :eci_indicator
+
+  attr_accessor :recipient, :info, :root_key, :intermediate_key
+  attr_writer   :merchant_id, :shared_secret
+
+  def initialize(protocol_version = :ECv2)
+    @protocol_version = protocol_version
+  end
 
   def self.sign(key, message)
     d = OpenSSL::Digest::SHA256.new
@@ -137,5 +152,216 @@ module AliquotPay
         'signatures' => signatures,
       },
     }
+  end
+
+  def token
+    build_token
+  end
+
+  def extract_root_signing_keys
+    key = Base64.strict_encode64(eckey_to_public(ensure_root_key).to_der)
+    {
+      'keys' => [
+        'protocolVersion' => @protocol_version,
+        'keyValue'        => key,
+      ]
+    }.to_json
+  end
+
+  def eckey_to_public(key)
+    p = OpenSSL::PKey::EC.new(EC_CURVE)
+
+    p.public_key = key.public_key
+
+    p
+  end
+
+  #private
+
+  def sign(key, message)
+    d = OpenSSL::Digest::SHA256.new
+    def key.private?; private_key?; end
+    Base64.strict_encode64(key.sign(d, message))
+  end
+
+  def encrypt(cleartext_message)
+    @recipient ||= OpenSSL::PKey::EC.new('prime256v1').generate_key
+    @info ||= 'Google'
+
+    eph = AliquotPay::Util.generate_ephemeral_key
+    @shared_secret ||= AliquotPay::Util.generate_shared_secret(eph, @recipient.public_key)
+    ss  = @shared_secret
+
+    case @protocol_version
+    when :ECv1
+      cipher = OpenSSL::Cipher::AES128.new(:CTR)
+    when :ECv2
+      cipher = OpenSSL::Cipher::AES256.new(:CTR)
+    else
+      raise StandardError, "Invalid protocol_version #{protocol_version}"
+    end
+
+    keys = AliquotPay::Util.derive_keys(eph.public_key.to_bn.to_s(2), ss, @info, @protocol_version)
+
+    cipher.encrypt
+    cipher.key = keys[:aes_key]
+
+    encrypted_message = cipher.update(cleartext_message) + cipher.final
+
+    tag = AliquotPay::Util.calculate_tag(keys[:mac_key], encrypted_message)
+
+    {
+      encryptedMessage: Base64.strict_encode64(encrypted_message),
+      ephemeralPublicKey: Base64.strict_encode64(eph.public_key.to_bn.to_s(2)),
+      tag: Base64.strict_encode64(tag),
+    }
+  end
+
+  def build_payment_method_details
+    return @payment_method_details if @payment_method_details
+    value = {
+      'pan'             => @pan              || '4111111111111111',
+      'expirationYear'  => @expiration_year  || 2023,
+      'expirationMonth' => @expiration_month || 12,
+    }
+
+    if [nil, 'PAN_ONLY'].include?(@auth_method)
+      value.merge(
+        'authMethod' => 'PAN_ONLY'
+      )
+    else
+      value.merge(
+        'authMethod'   => 'CRYPTOGRAM_3DS',
+        'cryptogram'   => 'SOME CRYPTOGRAM',
+        'eciIndicator' => '05'
+      )
+    end
+  end
+
+  def build_cleartext_message
+    return @cleartext_message if @cleartext_message
+    default_message_id = Base64.strict_encode64(OpenSSL::Random.random_bytes(24))
+    default_message_expiration = ((Time.now.to_f + 60 * 5) * 1000).round.to_s
+
+    {
+      'messageExpiration'    => @message_expiration || default_message_expiration,
+      'messageId'            => @message_id || default_message_id,
+      'paymentMethod'        => 'CARD',
+      'paymentMethodDetails' => build_payment_method_details
+    }
+  end
+
+  def build_signed_message
+    return @signed_message if @signed_message
+
+    signed_message = encrypt(build_cleartext_message.to_json)
+    signed_message['encryptedMessage'] = @encrypted_message if @encrypted_message
+    signed_message['ephemeralPublicKey'] = @ephemeral_public_key if $ephemeral_public_key
+    signed_message['tag'] = @tag if @tag
+
+    @signed_message = signed_message
+  end
+
+  def signed_message_string
+    @signed_message_string ||= build_signed_message.to_json
+  end
+
+  def build_signed_key
+    return @signed_key if @signed_key
+    ensure_intermediate_key
+
+    if @intermediate_key.private_key? || @intermediate_key.public_key?
+      public_key = eckey_to_public(@intermediate_key)
+    else
+      fail 'Intermediate key must be public and private key'
+    end
+
+    default_key_value      = Base64.strict_encode64(public_key.to_der)
+    default_key_expiration = "#{Time.now.to_i + 3600}000"
+
+    {
+      'keyExpiration' => @key_expiration || default_key_expiration,
+      'keyValue'      => @key_value || default_key_value,
+    }
+  end
+
+  def signed_key_string
+    @signed_key_string ||= build_signed_key.to_json
+  end
+
+  def ensure_root_key
+    @root_key ||= OpenSSL::PKey::EC.new(EC_CURVE).generate_key
+  end
+
+  def ensure_intermediate_key
+    @intermediate_key ||= OpenSSL::PKey::EC.new(EC_CURVE).generate_key
+  end
+
+  def build_signature
+    return @signature if @signature
+    key = case @protocol_version
+          when :ECv1
+            ensure_root_key
+          when :ECv2
+            ensure_intermediate_key
+          end
+
+    signature_string =
+      signed_string_message = ['Google',
+                               "merchant:#{merchant_id}",
+                               @protocol_version.to_s,
+                               signed_message_string].map do |str|
+        [str.length].pack('V') + str
+      end.join
+    @signature = sign(key, signature_string)
+  end
+
+  def build_signatures
+    if @signatures
+      if @signatures.instance_of?(Array)
+        return @signatures
+      elsif @signatures.instance_of(String)
+        return [@signatures]
+      else
+        fail 'invalid @signatures value'
+      end
+    end
+
+    signature_string =
+      signed_key_signature = ['Google', 'ECv2', signed_key_string].map do |str|
+        [str.length].pack('V') + str
+      end.join
+
+    @signatures = [sign(ensure_root_key, signature_string)]
+  end
+
+  def build_token
+    return @token if @token
+    res = {
+      'protocolVersion' => @protocol_version.to_s,
+      'signedMessage'   => signed_message_string,
+      'signature'       => build_signature,
+    }
+
+    if @protocol_version == :ECv2
+      intermediate = @intermediate_signing_key || {
+        'intermediateSigningKey' => {
+          'signedKey'  => signed_key_string,
+          'signatures' => build_signatures,
+        }
+      }
+
+      res.merge!(intermediate)
+    end
+
+    @token = res
+  end
+
+  def merchant_id
+    @merchant_id ||= DEFAULTS[:merchant_id]
+  end
+
+  def shared_secret
+    Base64.strict_encode64(@shared_secret)
   end
 end
