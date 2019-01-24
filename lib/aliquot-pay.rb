@@ -23,7 +23,7 @@ class AliquotPay
   attr_accessor :cryptogram, :eci_indicator
 
   attr_accessor :recipient, :info, :root_key, :intermediate_key
-  attr_writer   :merchant_id, :shared_secret
+  attr_writer   :merchant_id, :shared_secret, :token, :signed_key_string
 
   def initialize(protocol_version = :ECv2)
     @protocol_version = protocol_version
@@ -58,9 +58,9 @@ class AliquotPay
     tag = AliquotPay::Util.calculate_tag(keys[:mac_key], encrypted_message)
 
     {
-      encryptedMessage: Base64.strict_encode64(encrypted_message),
-      ephemeralPublicKey: Base64.strict_encode64(eph.public_key.to_bn.to_s(2)),
-      tag: Base64.strict_encode64(tag),
+      'encryptedMessage'   => Base64.strict_encode64(encrypted_message),
+      'ephemeralPublicKey' => Base64.strict_encode64(eph.public_key.to_bn.to_s(2)),
+      'tag'                => Base64.strict_encode64(tag),
     }
   end
 
@@ -211,9 +211,9 @@ class AliquotPay
     tag = AliquotPay::Util.calculate_tag(keys[:mac_key], encrypted_message)
 
     {
-      encryptedMessage: Base64.strict_encode64(encrypted_message),
-      ephemeralPublicKey: Base64.strict_encode64(eph.public_key.to_bn.to_s(2)),
-      tag: Base64.strict_encode64(tag),
+      'encryptedMessage'   => Base64.strict_encode64(encrypted_message),
+      'ephemeralPublicKey' => Base64.strict_encode64(eph.public_key.to_bn.to_s(2)),
+      'tag'                => Base64.strict_encode64(tag),
     }
   end
 
@@ -223,19 +223,17 @@ class AliquotPay
       'pan'             => @pan              || '4111111111111111',
       'expirationYear'  => @expiration_year  || 2023,
       'expirationMonth' => @expiration_month || 12,
+      'authMethod'     => @auth_method      || 'PAN_ONLY',
     }
 
-    if [nil, 'PAN_ONLY'].include?(@auth_method)
-      value.merge(
-        'authMethod' => 'PAN_ONLY'
-      )
-    else
-      value.merge(
-        'authMethod'   => 'CRYPTOGRAM_3DS',
-        'cryptogram'   => 'SOME CRYPTOGRAM',
-        'eciIndicator' => '05'
+    if @auth_method == 'CRYPTOGRAM_3DS'
+      value.merge!(
+        'cryptogram'   => @cryptogram    || 'SOME CRYPTOGRAM',
+        'eciIndicator' => @eci_indicator || '05'
       )
     end
+
+    value
   end
 
   def build_cleartext_message
@@ -243,10 +241,10 @@ class AliquotPay
     default_message_id = Base64.strict_encode64(OpenSSL::Random.random_bytes(24))
     default_message_expiration = ((Time.now.to_f + 60 * 5) * 1000).round.to_s
 
-    {
+    @cleartext_message = {
       'messageExpiration'    => @message_expiration || default_message_expiration,
       'messageId'            => @message_id || default_message_id,
-      'paymentMethod'        => 'CARD',
+      'paymentMethod'        => @payment_method || 'CARD',
       'paymentMethodDetails' => build_payment_method_details
     }
   end
@@ -255,9 +253,9 @@ class AliquotPay
     return @signed_message if @signed_message
 
     signed_message = encrypt(build_cleartext_message.to_json)
-    signed_message['encryptedMessage'] = @encrypted_message if @encrypted_message
-    signed_message['ephemeralPublicKey'] = @ephemeral_public_key if $ephemeral_public_key
-    signed_message['tag'] = @tag if @tag
+    signed_message['encryptedMessage']   = @encrypted_message if @encrypted_message
+    signed_message['ephemeralPublicKey'] = @ephemeral_public_key if @ephemeral_public_key
+    signed_message['tag']                = @tag if @tag
 
     @signed_message = signed_message
   end
@@ -279,7 +277,7 @@ class AliquotPay
     default_key_value      = Base64.strict_encode64(public_key.to_der)
     default_key_expiration = "#{Time.now.to_i + 3600}000"
 
-    {
+    @signed_key = {
       'keyExpiration' => @key_expiration || default_key_expiration,
       'keyValue'      => @key_value || default_key_value,
     }
@@ -317,19 +315,11 @@ class AliquotPay
   end
 
   def build_signatures
-    if @signatures
-      if @signatures.instance_of?(Array)
-        return @signatures
-      elsif @signatures.instance_of(String)
-        return [@signatures]
-      else
-        fail 'invalid @signatures value'
-      end
-    end
+    return @signatures if @signatures
 
     signature_string =
       signed_key_signature = ['Google', 'ECv2', signed_key_string].map do |str|
-        [str.length].pack('V') + str
+        [str.to_s.length].pack('V') + str.to_s
       end.join
 
     @signatures = [sign(ensure_root_key, signature_string)]
@@ -339,13 +329,13 @@ class AliquotPay
     return @token if @token
     res = {
       'protocolVersion' => @protocol_version.to_s,
-      'signedMessage'   => signed_message_string,
+      'signedMessage'   => @signed_message || signed_message_string,
       'signature'       => build_signature,
     }
 
     if @protocol_version == :ECv2
-      intermediate = @intermediate_signing_key || {
-        'intermediateSigningKey' => {
+      intermediate = {
+        'intermediateSigningKey' => @intermediate_signing_key || {
           'signedKey'  => signed_key_string,
           'signatures' => build_signatures,
         }
@@ -362,6 +352,8 @@ class AliquotPay
   end
 
   def shared_secret
-    Base64.strict_encode64(@shared_secret)
+    return Base64.strict_encode64(@shared_secret) if @shared_secret
+    @shared_secret ||= Random.new.bytes(32)
+    shared_secret
   end
 end
