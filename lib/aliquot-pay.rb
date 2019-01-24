@@ -98,7 +98,7 @@ class AliquotPay
       'pan'             => @pan              || '4111111111111111',
       'expirationYear'  => @expiration_year  || 2023,
       'expirationMonth' => @expiration_month || 12,
-      'authMethod'     => @auth_method      || 'PAN_ONLY',
+      'authMethod'      => @auth_method      || 'PAN_ONLY',
     }
 
     if @auth_method == 'CRYPTOGRAM_3DS'
