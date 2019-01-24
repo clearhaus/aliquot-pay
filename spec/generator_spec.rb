@@ -1,4 +1,5 @@
 require 'aliquot'
+require 'aliquot-pay'
 require 'json'
 require 'base64'
 
