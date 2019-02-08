@@ -1,5 +1,7 @@
 # Aliquot-Pay
 
+[![Gem Version](https://badge.fury.io/rb/aliquot-pay.svg)](https://badge.fury.io/rb/aliquot-pay)
+
 Generate Google Pay tokens to use for testing.
 Used for testing [Aliquot](https://github.com/clearhaus/aliquot).
 
