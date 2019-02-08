@@ -4,7 +4,7 @@ Generate Google Pay tokens to use for testing.
 Used for testing [Aliquot](https://github.com/clearhaus/aliquot).
 
 ## Generate a token and associated values.
-``ruby
+```ruby
 require 'aliquot-pay'
 
 ap = AliquotPay.new(:ECv2)
