@@ -64,7 +64,7 @@ class AliquotPay
     @info ||= 'Google'
 
     eph = AliquotPay::Util.generate_ephemeral_key
-    @shared_key ||= AliquotPay::Util.generate_shared_secret(eph, @recipient.public_key)
+    @shared_key ||= AliquotPay::Util.generate_shared_key(eph, @recipient.public_key)
     sk  = @shared_key
 
     case @protocol_version
