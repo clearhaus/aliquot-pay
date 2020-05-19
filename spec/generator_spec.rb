@@ -46,7 +46,7 @@ shared_examples 'generation tests' do
 
     it 'decrypts' do
       a = Aliquot::Payment.new(token.to_json,
-                               instance.shared_secret,
+                               instance.shared_key,
                                instance.merchant_id,
                                signing_keys: instance.extract_root_signing_keys)
 

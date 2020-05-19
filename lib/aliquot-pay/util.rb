@@ -11,7 +11,7 @@ class AliquotPay
       private_key.dh_compute_key(public_key)
     end
 
-    def self.derive_keys(ephemeral_public_key, shared_secret, info, protocol_version = :ECv2)
+    def self.derive_keys(ephemeral_public_key, shared_key, info, protocol_version = :ECv2)
       case protocol_version
       when :ECv1
         key_length = 16
@@ -21,7 +21,7 @@ class AliquotPay
         raise StandardError, "invalid protocol_version #{protocol_version}"
       end
 
-      input_keying_material = ephemeral_public_key + shared_secret
+      input_keying_material = ephemeral_public_key + shared_key
       if OpenSSL.const_defined?(:KDF) && OpenSSL::KDF.respond_to?(:hkdf)
         h = OpenSSL::Digest::SHA256.new
         hbytes = OpenSSL::KDF.hkdf(input_keying_material, hash: h, salt: '', length: key_length * 2, info: info)

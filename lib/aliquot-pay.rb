@@ -23,7 +23,7 @@ class AliquotPay
   attr_accessor :cryptogram, :eci_indicator
 
   attr_accessor :recipient, :info, :root_key, :intermediate_key
-  attr_writer   :merchant_id, :shared_secret, :token, :signed_key_string
+  attr_writer   :merchant_id, :shared_key, :token, :signed_key_string
 
   def initialize(protocol_version = :ECv2)
     @protocol_version = protocol_version
@@ -64,8 +64,8 @@ class AliquotPay
     @info ||= 'Google'
 
     eph = AliquotPay::Util.generate_ephemeral_key
-    @shared_secret ||= AliquotPay::Util.generate_shared_secret(eph, @recipient.public_key)
-    ss  = @shared_secret
+    @shared_key ||= AliquotPay::Util.generate_shared_secret(eph, @recipient.public_key)
+    sk  = @shared_key
 
     case @protocol_version
     when :ECv1
@@ -76,7 +76,7 @@ class AliquotPay
       raise StandardError, "Invalid protocol_version #{protocol_version}"
     end
 
-    keys = AliquotPay::Util.derive_keys(eph.public_key.to_bn.to_s(2), ss, @info, @protocol_version)
+    keys = AliquotPay::Util.derive_keys(eph.public_key.to_bn.to_s(2), sk, @info, @protocol_version)
 
     cipher.encrypt
     cipher.key = keys[:aes_key]
@@ -226,9 +226,12 @@ class AliquotPay
     @merchant_id ||= DEFAULTS[:merchant_id]
   end
 
-  def shared_secret
-    return Base64.strict_encode64(@shared_secret) if @shared_secret
-    @shared_secret ||= Random.new.bytes(32)
-    shared_secret
+  def shared_key
+    return Base64.strict_encode64(@shared_key) if @shared_key
+    @shared_key ||= Random.new.bytes(32)
+    shared_key
   end
+
+  # NOTICED: shared_secret is deprecated, use shared_key
+  alias_method :shared_secret, :shared_key
 end
