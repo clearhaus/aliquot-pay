@@ -3,7 +3,7 @@
 
 Gem::Specification.new do |s|
   s.name     = 'aliquot-pay'
-  s.version  = '1.0.0'
+  s.version  = '1.1.0'
   s.author   = 'Clearhaus'
   s.email    = 'hello@clearhaus.com'
   s.summary  = 'Generates Google Pay test dummy tokens'
@@ -16,4 +16,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'hkdf', '~> 0.3'
 
   s.add_development_dependency 'rspec', '~> 3'
+  s.add_development_dependency 'aliquot', '~> 1'
 end
