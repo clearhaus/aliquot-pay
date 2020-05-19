@@ -232,6 +232,6 @@ class AliquotPay
     shared_key
   end
 
-  # NOTICED: shared_secret is deprecated, use shared_key
+  # NOTICE: shared_secret is deprecated, use shared_key
   alias_method :shared_secret, :shared_key
 end
