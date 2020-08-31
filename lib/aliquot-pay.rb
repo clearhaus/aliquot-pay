@@ -11,7 +11,7 @@ class AliquotPay
 
   DEFAULTS = {
     info: 'Google',
-    merchant_id: '0123456789',
+    recipient_id: 'merchant:0123456789',
   }.freeze
 
   attr_accessor :signature, :intermediate_signing_key, :signed_message
@@ -23,7 +23,7 @@ class AliquotPay
   attr_accessor :cryptogram, :eci_indicator
 
   attr_accessor :recipient, :info, :root_key, :intermediate_key
-  attr_writer   :merchant_id, :shared_secret, :token, :signed_key_string
+  attr_writer   :recipient_id, :shared_secret, :token, :signed_key_string
 
   def initialize(protocol_version = :ECv2)
     @protocol_version = protocol_version
@@ -181,7 +181,7 @@ class AliquotPay
 
     signature_string =
       signed_string_message = ['Google',
-                               "merchant:#{merchant_id}",
+                               recipient_id,
                                @protocol_version.to_s,
                                signed_message_string].map do |str|
         [str.length].pack('V') + str
@@ -222,8 +222,8 @@ class AliquotPay
     @token = res
   end
 
-  def merchant_id
-    @merchant_id ||= DEFAULTS[:merchant_id]
+  def recipient_id
+    @recipient_id ||= DEFAULTS[:recipient_id]
   end
 
   def shared_secret
