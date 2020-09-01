@@ -19,6 +19,6 @@ signing_keys = ap.extract_root_signing_keys
 # Extract shared secret as Base64
 shared_secret = ap.shared_secret
 
-# Extract (default) merchant id
-merchant_id = ap.merchant_id
+# Extract (default) recipient id
+recipient_id = ap.recipient_id
 ```

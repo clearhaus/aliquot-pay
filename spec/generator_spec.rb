@@ -47,7 +47,7 @@ shared_examples 'generation tests' do
     it 'decrypts' do
       a = Aliquot::Payment.new(token.to_json,
                                instance.shared_secret,
-                               instance.merchant_id,
+                               instance.recipient_id,
                                signing_keys: instance.extract_root_signing_keys)
 
       expect { a.process }.to_not raise_error

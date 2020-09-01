@@ -3,7 +3,7 @@
 
 Gem::Specification.new do |s|
   s.name     = 'aliquot-pay'
-  s.version  = '1.0.0'
+  s.version  = '2.0.0'
   s.author   = 'Clearhaus'
   s.email    = 'hello@clearhaus.com'
   s.summary  = 'Generates Google Pay test dummy tokens'
@@ -14,6 +14,7 @@ Gem::Specification.new do |s|
 
   # Ruby 2.3 OpenSSL does not support KDF (hkdf).
   s.add_runtime_dependency 'hkdf', '~> 0.3'
+  s.add_runtime_dependency 'aliquot', '~> 2.0.0'
 
   s.add_development_dependency 'rspec', '~> 3'
 end
