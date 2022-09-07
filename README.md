@@ -22,3 +22,15 @@ shared_secret = ap.shared_secret
 # Extract (default) recipient id
 recipient_id = ap.recipient_id
 ```
+
+## Unit tests ##
+
+To be sure that unit tests run properly, you can run them in a docker container.
+
+```bash
+docker run -ti --rm -v $(pwd):/opt/aliquot-pay ruby:2.7.4 bash
+cd /opt/aliquot-pay
+bundle install
+bundle exec rspec
+exit
+```
