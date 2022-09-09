@@ -3,7 +3,7 @@
 
 Gem::Specification.new do |s|
   s.name     = 'aliquot-pay'
-  s.version  = '2.1.0'
+  s.version  = '2.1.1'
   s.author   = 'Clearhaus'
   s.email    = 'hello@clearhaus.com'
   s.summary  = 'Generates Google Pay test dummy tokens'
@@ -12,8 +12,8 @@ Gem::Specification.new do |s|
 
   s.files = Dir.glob('lib/**/*.rb')
 
-  s.add_runtime_dependency 'hkdf', '~> 0.3'
-  s.add_runtime_dependency 'aliquot', '~> 2.1.0'
+  s.add_runtime_dependency 'hkdf',    '~> 0.3'
+  s.add_runtime_dependency 'aliquot', '~> 2.1.1'
 
   s.add_development_dependency 'rspec', '~> 3'
 end

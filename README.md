@@ -25,7 +25,7 @@ recipient_id = ap.recipient_id
 
 ## Unit tests ##
 
-To be sure that unit tests run properly, you can run them in a docker container.
+To be sure that unit tests run properly, you can run them in a Docker container.
 
 ```bash
 docker run -ti --rm -v $(pwd):/opt/aliquot-pay ruby:2.7.4 bash
@@ -34,3 +34,28 @@ bundle install
 bundle exec rspec
 exit
 ```
+
+## Publishing new Gem
+
+Beware of cyclic dependency with `aliquot`. Update the new versions
+for these gems in parallel.
+
+1. Update [./aliquot-pay.gemspec](./aliquot-pay.gemspec)
+    ```gemspec
+    Gem::Specification.new do |s|
+      s.name     = 'aliquot-pay'
+      s.version  = '${NEW_ALIQUOT-PAY_VERSION}'
+      ...
+      s.add_runtime_dependency 'aliquot', '~> ${NEW_ALIQUOT_VERSION}'
+      ...
+    end
+    ```
+
+2. Run the following
+    ```bash
+    gem build
+    gem push aliquot-pay-${NEW_ALIQUOT-PAY_VERSION}.gem
+    ```
+
+3. Then do the same for `aliquot` if not already done.
+
