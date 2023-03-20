@@ -124,7 +124,7 @@ class AliquotPay
       'paymentMethodDetails' => build_payment_method_details
     }
 
-    if @protocol_version == 'ECv2'
+    if @protocol_version == :ECv2
       @cleartext_message.merge!(
         'gatewayMerchantId' => @gateway_merchant_id || 'SOME GATEWAY MERCHANT ID'
       )
