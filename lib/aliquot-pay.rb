@@ -34,7 +34,7 @@ class AliquotPay
   end
 
   def extract_root_signing_keys
-    key = Base64.strict_encode64(eckey_to_public(ensure_root_key).to_der)
+    key = Base64.strict_encode64(eckey_to_public(ensure_root_key))
     {
       'keys' => [
         'protocolVersion' => @protocol_version,
@@ -43,15 +43,18 @@ class AliquotPay
     }.to_json
   end
 
-  def eckey_to_public(key)
-    p = OpenSSL::PKey::EC.new(EC_CURVE)
-
-    p.public_key = key.public_key
-
-    p
+  if OpenSSL::VERSION >= '3'
+    # pkeys are immutable on OpenSSL >=3.0
+    def eckey_to_public(key)
+      key.public_to_der
+    end
+  else
+    def eckey_to_public(key)
+      k = OpenSSL::PKey::EC.new(EC_CURVE)
+      k.public_key = key.public_key
+      k.to_der
+    end
   end
-
-  #private
 
   def sign(key, message)
     d = OpenSSL::Digest::SHA256.new
@@ -60,7 +63,7 @@ class AliquotPay
   end
 
   def encrypt(cleartext_message)
-    @recipient ||= OpenSSL::PKey::EC.new('prime256v1').generate_key
+    @recipient ||= OpenSSL::PKey::EC.generate('prime256v1')
     @info ||= 'Google'
 
     eph = AliquotPay::Util.generate_ephemeral_key
@@ -143,13 +146,11 @@ class AliquotPay
     return @signed_key if @signed_key
     ensure_intermediate_key
 
-    if @intermediate_key.private_key? || @intermediate_key.public_key?
-      public_key = eckey_to_public(@intermediate_key)
-    else
+    if !@intermediate_key.private_key? && !@intermediate_key.public_key?
       fail 'Intermediate key must be public and private key'
     end
 
-    default_key_value      = Base64.strict_encode64(public_key.to_der)
+    default_key_value      = Base64.strict_encode64(eckey_to_public(@intermediate_key))
     default_key_expiration = "#{Time.now.to_i + 3600}000"
 
     @signed_key = {
@@ -163,11 +164,11 @@ class AliquotPay
   end
 
   def ensure_root_key
-    @root_key ||= OpenSSL::PKey::EC.new(EC_CURVE).generate_key
+    @root_key ||= OpenSSL::PKey::EC.generate(EC_CURVE)
   end
 
   def ensure_intermediate_key
-    @intermediate_key ||= OpenSSL::PKey::EC.new(EC_CURVE).generate_key
+    @intermediate_key ||= OpenSSL::PKey::EC.generate(EC_CURVE)
   end
 
   def build_signature
