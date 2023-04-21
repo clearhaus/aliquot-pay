@@ -4,7 +4,7 @@ require 'hkdf'
 class AliquotPay
   class Util
     def self.generate_ephemeral_key
-      OpenSSL::PKey::EC.new(AliquotPay::EC_CURVE).generate_key
+      OpenSSL::PKey::EC.generate(AliquotPay::EC_CURVE)
     end
 
     def self.generate_shared_secret(private_key, public_key)

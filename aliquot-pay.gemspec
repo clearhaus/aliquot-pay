@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.files = Dir.glob('lib/**/*.rb')
 
   s.add_runtime_dependency 'hkdf',    '~> 0.3'
-  s.add_runtime_dependency 'aliquot', '~> 2.1.1'
+  s.add_runtime_dependency 'aliquot', '~> 2.1'
 
   s.add_development_dependency 'rspec', '~> 3'
 end
