@@ -34,21 +34,13 @@ class AliquotPay
   end
 
   def extract_root_signing_keys
-    key = Base64.strict_encode64(eckey_to_public(ensure_root_key).to_der)
+    key = Base64.strict_encode64(ensure_root_key.to_der)
     {
       'keys' => [
         'protocolVersion' => @protocol_version,
         'keyValue'        => key,
       ]
     }.to_json
-  end
-
-  def eckey_to_public(key)
-    p = OpenSSL::PKey::EC.new(EC_CURVE)
-
-    p.public_key = key.public_key
-
-    p
   end
 
   #private
@@ -60,7 +52,7 @@ class AliquotPay
   end
 
   def encrypt(cleartext_message)
-    @recipient ||= OpenSSL::PKey::EC.new('prime256v1').generate_key
+    @recipient ||= OpenSSL::PKey::EC.generate('prime256v1')
     @info ||= 'Google'
 
     eph = AliquotPay::Util.generate_ephemeral_key
@@ -144,7 +136,7 @@ class AliquotPay
     ensure_intermediate_key
 
     if @intermediate_key.private_key? || @intermediate_key.public_key?
-      public_key = eckey_to_public(@intermediate_key)
+      public_key = @intermediate_key
     else
       fail 'Intermediate key must be public and private key'
     end
@@ -163,11 +155,11 @@ class AliquotPay
   end
 
   def ensure_root_key
-    @root_key ||= OpenSSL::PKey::EC.new(EC_CURVE).generate_key
+    @root_key ||= OpenSSL::PKey::EC.generate(EC_CURVE)
   end
 
   def ensure_intermediate_key
-    @intermediate_key ||= OpenSSL::PKey::EC.new(EC_CURVE).generate_key
+    @intermediate_key ||= OpenSSL::PKey::EC.generate(EC_CURVE)
   end
 
   def build_signature
