@@ -18,7 +18,7 @@ class AliquotPay
   attr_accessor :signed_key, :signatures
   attr_accessor :key_expiration, :key_value
   attr_accessor :encrypted_message, :cleartext_message, :ephemeral_public_key, :tag
-  attr_accessor :message_expiration, :message_id, :payment_method, :payment_method_details
+  attr_accessor :message_expiration, :message_id, :payment_method, :payment_method_details, :gateway_merchant_id
   attr_accessor :pan, :expiration_month, :expiration_year, :auth_method
   attr_accessor :cryptogram, :eci_indicator
 
@@ -105,6 +105,7 @@ class AliquotPay
 
   def build_cleartext_message
     return @cleartext_message if @cleartext_message
+
     default_message_id = Base64.strict_encode64(OpenSSL::Random.random_bytes(24))
     default_message_expiration = ((Time.now.to_f + 60 * 5) * 1000).round.to_s
 
@@ -114,6 +115,14 @@ class AliquotPay
       'paymentMethod'        => @payment_method || 'CARD',
       'paymentMethodDetails' => build_payment_method_details
     }
+
+    if @protocol_version == :ECv2
+      @cleartext_message.merge!(
+        'gatewayMerchantId' => @gateway_merchant_id || 'SOME GATEWAY MERCHANT ID'
+      )
+    end
+
+    @cleartext_message
   end
 
   def build_signed_message
@@ -141,7 +150,7 @@ class AliquotPay
       fail 'Intermediate key must be public and private key'
     end
 
-    default_key_value      = Base64.strict_encode64(public_key.to_der)
+    default_key_value      = Base64.strict_encode64(eckey_to_public(@intermediate_key))
     default_key_expiration = "#{Time.now.to_i + 3600}000"
 
     @signed_key = {
