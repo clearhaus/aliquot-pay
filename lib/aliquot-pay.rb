@@ -150,7 +150,7 @@ class AliquotPay
       fail 'Intermediate key must be public and private key'
     end
 
-    default_key_value      = Base64.strict_encode64(eckey_to_public(@intermediate_key))
+    default_key_value      = Base64.strict_encode64(@intermediate_key.to_der)
     default_key_expiration = "#{Time.now.to_i + 3600}000"
 
     @signed_key = {
