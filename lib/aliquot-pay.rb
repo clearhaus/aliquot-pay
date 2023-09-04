@@ -144,9 +144,7 @@ class AliquotPay
     return @signed_key if @signed_key
     ensure_intermediate_key
 
-    if @intermediate_key.private_key? || @intermediate_key.public_key?
-      public_key = @intermediate_key
-    else
+    if @intermediate_key.private_key? && @intermediate_key.public_key?
       fail 'Intermediate key must be public and private key'
     end
 
