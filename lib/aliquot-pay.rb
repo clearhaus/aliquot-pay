@@ -43,8 +43,6 @@ class AliquotPay
     }.to_json
   end
 
-  #private
-
   def sign(key, message)
     d = OpenSSL::Digest::SHA256.new
     def key.private?; private_key?; end
