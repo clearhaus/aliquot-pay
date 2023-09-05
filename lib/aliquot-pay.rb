@@ -34,26 +34,13 @@ class AliquotPay
   end
 
   def extract_root_signing_keys
-    key = Base64.strict_encode64(eckey_to_public(ensure_root_key))
+    key = Base64.strict_encode64(ensure_root_key.to_der)
     {
       'keys' => [
         'protocolVersion' => @protocol_version,
         'keyValue'        => key,
       ]
     }.to_json
-  end
-
-  if OpenSSL::VERSION >= '3'
-    # pkeys are immutable on OpenSSL >=3.0
-    def eckey_to_public(key)
-      key.public_to_der
-    end
-  else
-    def eckey_to_public(key)
-      k = OpenSSL::PKey::EC.new(EC_CURVE)
-      k.public_key = key.public_key
-      k.to_der
-    end
   end
 
   def sign(key, message)
@@ -159,7 +146,7 @@ class AliquotPay
       fail 'Intermediate key must be public and private key'
     end
 
-    default_key_value      = Base64.strict_encode64(eckey_to_public(@intermediate_key))
+    default_key_value      = Base64.strict_encode64(@intermediate_key.to_der)
     default_key_expiration = "#{Time.now.to_i + 3600}000"
 
     @signed_key = {
