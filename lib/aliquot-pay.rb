@@ -25,8 +25,11 @@ class AliquotPay
   attr_accessor :recipient, :info, :root_key, :intermediate_key
   attr_writer   :recipient_id, :shared_secret, :token, :signed_key_string
 
-  def initialize(protocol_version = :ECv2)
+  def initialize(protocol_version = :ECv2, root_key = nil)
     @protocol_version = protocol_version
+    if root_key
+      @root_key = root_key
+    end
   end
 
   def token
