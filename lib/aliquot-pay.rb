@@ -61,7 +61,9 @@ class AliquotPay
 
   def sign(key, message)
     d = OpenSSL::Digest::SHA256.new
-    def key.private?; private_key?; end
+    def key.private?
+      private_key?
+    end
     Base64.strict_encode64(key.sign(d, message))
   end
 
