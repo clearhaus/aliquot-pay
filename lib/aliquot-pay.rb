@@ -25,8 +25,11 @@ class AliquotPay
   attr_accessor :recipient, :info, :root_key, :intermediate_key
   attr_writer   :recipient_id, :shared_secret, :token, :signed_key_string
 
-  def initialize(protocol_version = :ECv2)
+  def initialize(protocol_version = :ECv2, root_key = nil)
     @protocol_version = protocol_version
+    if root_key
+      @root_key = root_key
+    end
   end
 
   def token
@@ -45,7 +48,9 @@ class AliquotPay
 
   def sign(key, message)
     d = OpenSSL::Digest::SHA256.new
-    def key.private?; private_key?; end
+    def key.private?
+      private_key?
+    end
     Base64.strict_encode64(key.sign(d, message))
   end
 
