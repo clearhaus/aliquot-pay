@@ -91,7 +91,7 @@ class AliquotPay
     return @payment_method_details if @payment_method_details
     value = {
       'pan'             => @pan              || '4111111111111111',
-      'expirationYear'  => @expiration_year  || 2023,
+      'expirationYear'  => @expiration_year  || Time.now.year + 1,
       'expirationMonth' => @expiration_month || 12,
       'authMethod'      => @auth_method      || 'PAN_ONLY',
     }
