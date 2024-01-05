@@ -25,8 +25,17 @@ class AliquotPay
   attr_accessor :recipient, :info, :root_key, :intermediate_key
   attr_writer   :recipient_id, :shared_secret, :token, :signed_key_string
 
-  def initialize(protocol_version = :ECv2, root_key = nil)
+  def initialize(protocol_version = :ECv2, type = :browser, root_key = nil)
     @protocol_version = protocol_version
+    @type = type
+    if type == :app
+      @auth_method = '3DS_CRYPTOGRAM'
+      if @protocol_version == :ECv1
+        @auth_method = '3DS'
+        @payment_method = 'TOKENIZED_CARD'
+      end
+    end
+
     if root_key
       @root_key = root_key
     end
@@ -89,22 +98,47 @@ class AliquotPay
 
   def build_payment_method_details
     return @payment_method_details if @payment_method_details
+
+    return build_payment_method_details_non_tokenized if @type == :browser
+
+    build_payment_method_details_tokenized
+  end
+
+  def build_payment_method_details_non_tokenized
     value = {
       'pan'             => @pan              || '4111111111111111',
       'expirationYear'  => @expiration_year  || Time.now.year + 1,
       'expirationMonth' => @expiration_month || 12,
-      'authMethod'      => @auth_method      || 'PAN_ONLY',
     }
 
-    if @auth_method == 'CRYPTOGRAM_3DS'
+    if @protocol_version == :ECv2 && @type == :browser
       value.merge!(
-        'cryptogram'   => @cryptogram    || 'SOME CRYPTOGRAM',
-        'eciIndicator' => @eci_indicator || '05'
+        'authMethod' => @auth_method || 'PAN_ONLY'
       )
     end
-
     value
   end
+
+  def build_payment_method_details_tokenized
+    value = {
+      'expirationYear'  => @expiration_year  || Time.now.year + 1,
+      'expirationMonth' => @expiration_month || 12,
+    }
+    if @protocol_version == :ECv1
+        value.merge!(
+          'dpan'          => @pan || '4111111111111111',
+          '3dsCryptogram' => @cryptogram    || Base64.strict_encode64(OpenSSL::Random.random_bytes(20)),
+          'eciIndicator'  => @eci_indicator || '05'
+          )
+      else
+        value.merge!(
+          'pan'          => @pan || '4111111111111111',
+          'cryptogram'   => @cryptogram    || Base64.strict_encode64(OpenSSL::Random.random_bytes(20)),
+          'eciIndicator' => @eci_indicator || '05'
+        )
+      end
+  end
+
 
   def build_cleartext_message
     return @cleartext_message if @cleartext_message
@@ -118,6 +152,7 @@ class AliquotPay
       'paymentMethod'        => @payment_method || 'CARD',
       'paymentMethodDetails' => build_payment_method_details
     }
+
 
     if @protocol_version == :ECv2
       @cleartext_message.merge!(
