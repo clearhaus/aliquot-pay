@@ -25,11 +25,11 @@ class AliquotPay
   attr_accessor :recipient, :info, :root_key, :intermediate_key
   attr_writer   :recipient_id, :shared_secret, :token, :signed_key_string
 
-  def initialize(protocol_version = :ECv2, root_key = nil, type = :browser)
+  def initialize(protocol_version: :ECv2, root_key: nil, type: :browser)
     @protocol_version = protocol_version
     @type = type
     if type == :app
-      @auth_method = '3DS_CRYPTOGRAM'
+      @auth_method = 'CRYPTOGRAM_3DS'
       if @protocol_version == :ECv1
         @auth_method = '3DS'
         @payment_method = 'TOKENIZED_CARD'
@@ -77,7 +77,7 @@ class AliquotPay
     when :ECv2
       cipher = OpenSSL::Cipher::AES256.new(:CTR)
     else
-      raise StandardError, "Invalid protocol_version #{protocol_version}"
+      raise StandardError, "Invalid protocol_version #{@protocol_version}"
     end
 
     keys = AliquotPay::Util.derive_keys(eph.public_key.to_bn.to_s(2), ss, @info, @protocol_version)
@@ -141,7 +141,6 @@ class AliquotPay
       end
   end
 
-
   def build_cleartext_message
     return @cleartext_message if @cleartext_message
 
@@ -154,7 +153,6 @@ class AliquotPay
       'paymentMethod'        => @payment_method || 'CARD',
       'paymentMethodDetails' => build_payment_method_details
     }
-
 
     if @protocol_version == :ECv2
       @cleartext_message.merge!(
