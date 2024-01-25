@@ -123,20 +123,19 @@ class AliquotPay
     value = {
       'expirationYear'  => @expiration_year  || Time.now.year + 1,
       'expirationMonth' => @expiration_month || 12,
+      'eciIndicator'  => @eci_indicator || '05'
     }
     if @protocol_version == :ECv1
         value.merge!(
           'dpan'          => @pan || '4111111111111111',
           'authMethod'    => @auth_method || '3DS',
-          '3dsCryptogram' => @cryptogram    || Base64.strict_encode64(OpenSSL::Random.random_bytes(20)),
-          'eciIndicator'  => @eci_indicator || '05'
+          '3dsCryptogram' => @cryptogram    || Base64.strict_encode64(OpenSSL::Random.random_bytes(20))
           )
       else
         value.merge!(
           'pan'          => @pan || '4111111111111111',
           'authMethod'    => @auth_method || 'CRYPTOGRAM_3DS',
-          'cryptogram'   => @cryptogram    || Base64.strict_encode64(OpenSSL::Random.random_bytes(20)),
-          'eciIndicator' => @eci_indicator || '05'
+          'cryptogram'   => @cryptogram    || Base64.strict_encode64(OpenSSL::Random.random_bytes(20))
         )
       end
   end
