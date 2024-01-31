@@ -123,21 +123,22 @@ class AliquotPay
     value = {
       'expirationYear'  => @expiration_year  || Time.now.year + 1,
       'expirationMonth' => @expiration_month || 12,
-      'eciIndicator'    => @eci_indicator    || '05'
     }
     if @protocol_version == :ECv1
-        value.merge!(
-          'dpan'          => @pan         || '4111111111111111',
-          'authMethod'    => @auth_method || '3DS',
-          '3dsCryptogram' => @cryptogram  || Base64.strict_encode64(OpenSSL::Random.random_bytes(20))
-          )
-      else
-        value.merge!(
-          'pan'        => @pan         || '4111111111111111',
-          'authMethod' => @auth_method || 'CRYPTOGRAM_3DS',
-          'cryptogram' => @cryptogram  || Base64.strict_encode64(OpenSSL::Random.random_bytes(20))
-        )
-      end
+      value.merge!(
+        'dpan'          => @pan           || '4111111111111111',
+        'authMethod'    => @auth_method   || '3DS',
+        '3dsCryptogram' => @cryptogram    || Base64.strict_encode64(OpenSSL::Random.random_bytes(20)),
+        'eciIndicator'  => @eci_indicator || '05'
+      )
+    else
+      value.merge!(
+        'pan'          => @pan           || '4111111111111111',
+        'authMethod'   => @auth_method   || 'CRYPTOGRAM_3DS',
+        'cryptogram'   => @cryptogram    || Base64.strict_encode64(OpenSSL::Random.random_bytes(20)),
+        'eciIndicator' => @eci_indicator || '05'
+      )
+    end
   end
 
   def build_cleartext_message
@@ -148,8 +149,8 @@ class AliquotPay
 
     @cleartext_message = {
       'messageExpiration'    => @message_expiration || default_message_expiration,
-      'messageId'            => @message_id || default_message_id,
-      'paymentMethod'        => @payment_method || 'CARD',
+      'messageId'            => @message_id         || default_message_id,
+      'paymentMethod'        => @payment_method     || 'CARD',
       'paymentMethodDetails' => build_payment_method_details
     }
 
@@ -190,7 +191,7 @@ class AliquotPay
 
     @signed_key = {
       'keyExpiration' => @key_expiration || default_key_expiration,
-      'keyValue'      => @key_value || default_key_value,
+      'keyValue'      => @key_value      || default_key_value,
     }
   end
 
@@ -215,23 +216,21 @@ class AliquotPay
             ensure_intermediate_key
           end
 
-    signature_string =
-      signed_string_message = ['Google',
-                               recipient_id,
-                               @protocol_version.to_s,
-                               signed_message_string].map do |str|
-        [str.length].pack('V') + str
-      end.join
+    signature_string = ['Google',
+                        recipient_id,
+                        @protocol_version.to_s,
+                        signed_message_string].map do |str|
+      [str.length].pack('V') + str
+    end.join
     @signature = sign(key, signature_string)
   end
 
   def build_signatures
     return @signatures if @signatures
 
-    signature_string =
-      signed_key_signature = ['Google', 'ECv2', signed_key_string].map do |str|
-        [str.to_s.length].pack('V') + str.to_s
-      end.join
+    signature_string = ['Google', 'ECv2', signed_key_string].map do |str|
+      [str.to_s.length].pack('V') + str.to_s
+    end.join
 
     @signatures = [sign(ensure_root_key, signature_string)]
   end
