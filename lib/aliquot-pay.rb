@@ -175,7 +175,7 @@ class AliquotPay
   end
 
   def signed_message_string
-    @signed_message_string ||= build_signed_message.to_json
+    build_signed_message.to_json
   end
 
   def build_signed_key
