@@ -19,7 +19,7 @@ class AliquotPay
   attr_accessor :key_expiration, :key_value
   attr_accessor :encrypted_message, :cleartext_message, :ephemeral_public_key, :tag
   attr_accessor :message_expiration, :message_id, :payment_method, :payment_method_details, :gateway_merchant_id
-  attr_accessor :pan, :dpan, :expiration_month, :expiration_year, :auth_method
+  attr_accessor :pan, :expiration_month, :expiration_year, :auth_method
   attr_accessor :cryptogram, :eci_indicator
 
   attr_accessor :recipient, :info, :root_key, :intermediate_key
