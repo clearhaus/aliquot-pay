@@ -214,12 +214,14 @@ class AliquotPay
             ensure_intermediate_key
           end
 
-    signature_string = ['Google',
-                        recipient_id,
-                        @protocol_version.to_s,
-                        signed_message_string].map do |str|
-      [str.length].pack('V') + str
-    end.join
+    signature_elements = [
+      'Google',
+      recipient_id,
+      @protocol_version.to_s,
+      signed_message_string,
+    ]
+    
+    signature_string = signature_elements.map { |e| [e.length].pack('V') + e }.join
     @signature = sign(key, signature_string)
   end
 
