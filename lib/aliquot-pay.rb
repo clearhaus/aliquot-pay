@@ -27,6 +27,7 @@ class AliquotPay
 
   def initialize(protocol_version: :ECv2, root_key: nil, type: :browser)
     @protocol_version = protocol_version
+    @root_key = root_key
     @type = type
     if type == :app
       @auth_method = 'CRYPTOGRAM_3DS'
@@ -36,9 +37,6 @@ class AliquotPay
       end
     end
 
-    if root_key
-      @root_key = root_key
-    end
   end
 
   def token
