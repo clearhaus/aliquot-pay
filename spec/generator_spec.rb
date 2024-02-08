@@ -3,7 +3,6 @@ require 'aliquot-pay'
 require 'json'
 require 'base64'
 
-
 shared_examples 'generation tests' do
   context 'encrypted_message' do
     let(:message) { instance.build_cleartext_message }
