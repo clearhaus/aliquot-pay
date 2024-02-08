@@ -29,13 +29,6 @@ class AliquotPay
     @protocol_version = protocol_version
     @root_key = root_key
     @type = type
-    if type == :app
-      @auth_method = 'CRYPTOGRAM_3DS'
-      if @protocol_version == :ECv1
-        @auth_method = '3DS'
-        @payment_method = 'TOKENIZED_CARD'
-      end
-    end
   end
 
   def token
@@ -47,7 +40,7 @@ class AliquotPay
     {
       'keys' => [
         'protocolVersion' => @protocol_version,
-        'keyValue'        => key,
+        'keyValue'        => key
       ]
     }.to_json
   end
@@ -89,7 +82,7 @@ class AliquotPay
     {
       'encryptedMessage'   => Base64.strict_encode64(encrypted_message),
       'ephemeralPublicKey' => Base64.strict_encode64(eph.public_key.to_bn.to_s(2)),
-      'tag'                => Base64.strict_encode64(tag),
+      'tag'                => Base64.strict_encode64(tag)
     }
   end
 
@@ -105,7 +98,7 @@ class AliquotPay
     value = {
       'pan'             => @pan              || '4111111111111111',
       'expirationYear'  => @expiration_year  || Time.now.year + 1,
-      'expirationMonth' => @expiration_month || 12,
+      'expirationMonth' => @expiration_month || 12
     }
 
     if @protocol_version == :ECv2 && @type == :browser
@@ -120,7 +113,7 @@ class AliquotPay
     value = {
       'expirationYear'  => @expiration_year  || Time.now.year + 1,
       'expirationMonth' => @expiration_month || 12,
-        'eciIndicator'  => @eci_indicator || '05'
+      'eciIndicator'  => @eci_indicator || '05'
     }
     if @protocol_version == :ECv1
       value.merge!(
@@ -176,6 +169,7 @@ class AliquotPay
 
   def build_signed_key
     return @signed_key if @signed_key
+
     ensure_intermediate_key
 
     if !@intermediate_key.private_key? && !@intermediate_key.public_key?
@@ -187,7 +181,7 @@ class AliquotPay
 
     @signed_key = {
       'keyExpiration' => @key_expiration || default_key_expiration,
-      'keyValue'      => @key_value      || default_key_value,
+      'keyValue'      => @key_value      || default_key_value
     }
   end
 
@@ -216,9 +210,9 @@ class AliquotPay
       'Google',
       recipient_id,
       @protocol_version.to_s,
-      signed_message_string,
+      signed_message_string
     ]
-    
+
     signature_string = signature_elements.map { |e| [e.length].pack('V') + e }.join
     @signature = sign(key, signature_string)
   end
@@ -235,17 +229,26 @@ class AliquotPay
 
   def build_token
     return @token if @token
+
+    if @type == :app
+      @auth_method = 'CRYPTOGRAM_3DS'
+      if @protocol_version == :ECv1
+        @auth_method = '3DS'
+        @payment_method = 'TOKENIZED_CARD'
+      end
+    end
+
     res = {
       'protocolVersion' => @protocol_version.to_s,
       'signedMessage'   => @signed_message || signed_message_string,
-      'signature'       => build_signature,
+      'signature'       => build_signature
     }
 
     if @protocol_version == :ECv2
       intermediate = {
         'intermediateSigningKey' => @intermediate_signing_key || {
           'signedKey'  => signed_key_string,
-          'signatures' => build_signatures,
+          'signatures' => build_signatures
         }
       }
 
