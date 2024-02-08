@@ -36,7 +36,6 @@ class AliquotPay
         @payment_method = 'TOKENIZED_CARD'
       end
     end
-
   end
 
   def token
