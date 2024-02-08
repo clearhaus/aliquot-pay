@@ -91,7 +91,6 @@ describe AliquotPay do
     end
   end
 
-
   context :ECv2 do
     context 'non-tokenized' do
       let(:instance) { AliquotPay.new(protocol_version: :ECv2, type: :browser) }
