@@ -113,7 +113,5 @@ describe AliquotPay do
         expect(result.success?).to be(true), result.errors.to_s
       end
     end
-
-
   end
 end
