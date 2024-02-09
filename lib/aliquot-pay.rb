@@ -38,10 +38,10 @@ class AliquotPay
   def extract_root_signing_keys
     key = Base64.strict_encode64(ensure_root_key.to_der)
     {
-      'keys' => [
+      'keys' => [{
         'protocolVersion' => @protocol_version,
         'keyValue'        => key
-      ]
+      }]
     }.to_json
   end
 
