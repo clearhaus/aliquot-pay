@@ -29,6 +29,13 @@ class AliquotPay
     @protocol_version = protocol_version
     @root_key = root_key
     @type = type
+    if @type == :app
+      @auth_method = 'CRYPTOGRAM_3DS'
+      if @protocol_version == :ECv1
+        @auth_method = '3DS'
+        @payment_method = 'TOKENIZED_CARD'
+      end
+    end
   end
 
   def token
@@ -229,14 +236,6 @@ class AliquotPay
 
   def build_token
     return @token if @token
-
-    if @type == :app
-      @auth_method = 'CRYPTOGRAM_3DS'
-      if @protocol_version == :ECv1
-        @auth_method = '3DS'
-        @payment_method = 'TOKENIZED_CARD'
-      end
-    end
 
     res = {
       'protocolVersion' => @protocol_version.to_s,
