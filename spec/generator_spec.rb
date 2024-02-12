@@ -4,23 +4,9 @@ require 'json'
 require 'base64'
 
 shared_examples 'generation tests' do
-  context 'payment-payment_method_details' do
-    let(:details) { instance.build_payment_method_details }
-    let(:result)  { Aliquot::Validator::PaymentMethodDetailsSchema.call(details) }
-
-    it 'validates when PAN_ONLY' do
-      expect(result.success?).to be(true), result.errors.to_s
-    end
-
-    it 'validates when CRYPTOGRAM_3DS' do
-      instance.auth_method = 'CRYPTOGRAM_3DS'
-      expect(result.success?).to be(true), result.errors.to_s
-    end
-  end
-
   context 'encrypted_message' do
-    let(:message)  { instance.build_cleartext_message }
-    let(:result)   { Aliquot::Validator::EncryptedMessageSchema.call(message) }
+    let(:message) { instance.build_cleartext_message }
+    let(:result) { Aliquot::Validator::EncryptedMessageContract.schema.call(message) }
 
     it 'validates' do
       expect(result.success?).to be(true), result.errors.to_s
@@ -28,8 +14,8 @@ shared_examples 'generation tests' do
   end
 
   context 'signed_message' do
-    let(:message)  { instance.build_signed_message }
-    let(:result)   { Aliquot::Validator::SignedMessageSchema.call(message) }
+    let(:message) { instance.build_signed_message }
+    let(:result) { Aliquot::Validator::SignedMessageContract.schema.call(message) }
 
     it 'validates' do
       expect(result.success?).to be(true), result.errors.to_s
@@ -37,8 +23,8 @@ shared_examples 'generation tests' do
   end
 
   context 'token' do
-    let(:token)  { instance.token }
-    let(:result)   { Aliquot::Validator::TokenSchema.call(token) }
+    let(:token) { instance.token }
+    let(:result) { Aliquot::Validator::TokenContract.schema.call(token) }
 
     it 'validates' do
       expect(result.success?).to be(true), result.errors.to_s
@@ -55,35 +41,77 @@ shared_examples 'generation tests' do
   end
 end
 
-describe AliquotPay do
-  context :ECv1 do
-    let(:instance)     { AliquotPay.new(:ECv1) }
-    include_examples 'generation tests'
-
-    it 'has the correct protocolVersion' do
-      expect(instance.token['protocolVersion']).to eq('ECv1')
-    end
-
-    it 'excludes intermediateSigningKey' do
-      expect(instance.token['intermediateSigningKey']).to be nil
-    end
+shared_examples 'ECv1' do
+  it 'has the correct protocolVersion' do
+    expect(instance.token['protocolVersion']).to eq('ECv1')
   end
 
-  context :ECv2 do
-    let(:instance)     { AliquotPay.new(:ECv2) }
-    include_examples 'generation tests'
+  it 'excludes intermediateSigningKey' do
+    expect(instance.token['intermediateSigningKey']).to be nil
+  end
 
-    context 'signed_key' do
-      let(:message)  { instance.build_signed_key }
-      let(:result)   { Aliquot::Validator::SignedKeySchema.call(message) }
+end
 
-      it 'validates' do
-        expect(result.success?).to be(true), result.errors.to_s
-      end
+shared_examples 'ECv2' do
+  context 'signed_key' do
+    let(:message) { instance.build_signed_key }
+    let(:result) { Aliquot::Validator::SignedKeyContract.schema.call(message) }
+
+    it 'validates' do
+      expect(result.success?).to be(true), result.errors.to_s
     end
 
     it 'has the correct protocolVersion' do
       expect(instance.token['protocolVersion']).to eq('ECv2')
+    end
+  end
+end
+
+describe AliquotPay do
+  context :ECv1 do
+    context 'non-tokenized' do
+      let(:instance) { AliquotPay.new(protocol_version: :ECv1, type: :browser) }
+      let(:details) { instance.build_payment_method_details }
+      include_examples 'generation tests'
+      it 'validates when type is browser' do
+        result = Aliquot::Validator::ECv1_PaymentMethodDetailsContract.schema.call(details)
+        expect(result.success?).to be(true), result.errors.to_s
+      end
+    end
+
+    context 'tokenized' do
+      let(:instance) { AliquotPay.new(protocol_version: :ECv1, type: :app) }
+      let(:details) { instance.build_payment_method_details }
+      include_examples 'generation tests'
+      it 'validates when type is app' do
+        details.merge!('threedsCryptogram' => details.delete('3dsCryptogram'))
+        result = Aliquot::Validator::ECv1_TokenizedPaymentMethodDetailsContract.schema.call(details)
+        expect(result.success?).to be(true), result.errors.to_s
+      end
+    end
+  end
+
+  context :ECv2 do
+    context 'non-tokenized' do
+      let(:instance) { AliquotPay.new(protocol_version: :ECv2, type: :browser) }
+      let(:details) { instance.build_payment_method_details }
+      let(:result)  { Aliquot::Validator::ECv2_PaymentMethodDetailsContract.schema.call(details) }
+      include_examples 'generation tests'
+      include_examples 'ECv2'
+      it 'validates when browser' do
+        expect(result.success?).to be(true), result.errors.to_s
+      end
+    end
+
+    context 'tokenized' do
+      let(:instance) { AliquotPay.new(protocol_version: :ECv2, type: :app) }
+      let(:details) { instance.build_payment_method_details }
+      let(:result)  { Aliquot::Validator::ECv2_TokenizedPaymentMethodDetailsContract.schema.call(details) }
+      include_examples 'generation tests'
+      include_examples 'ECv2'
+      it 'validates when CRYPTOGRAM_3DS' do
+        expect(result.success?).to be(true), result.errors.to_s
+      end
     end
   end
 end

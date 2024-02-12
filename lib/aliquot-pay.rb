@@ -25,11 +25,10 @@ class AliquotPay
   attr_accessor :recipient, :info, :root_key, :intermediate_key
   attr_writer   :recipient_id, :shared_secret, :token, :signed_key_string
 
-  def initialize(protocol_version = :ECv2, root_key = nil)
+  def initialize(protocol_version: :ECv2, root_key: nil, type: :browser)
     @protocol_version = protocol_version
-    if root_key
-      @root_key = root_key
-    end
+    @root_key = root_key
+    @type = type
   end
 
   def token
@@ -39,10 +38,10 @@ class AliquotPay
   def extract_root_signing_keys
     key = Base64.strict_encode64(ensure_root_key.to_der)
     {
-      'keys' => [
+      'keys' => [{
         'protocolVersion' => @protocol_version,
-        'keyValue'        => key,
-      ]
+        'keyValue'        => key
+      }]
     }.to_json
   end
 
@@ -68,7 +67,7 @@ class AliquotPay
     when :ECv2
       cipher = OpenSSL::Cipher::AES256.new(:CTR)
     else
-      raise StandardError, "Invalid protocol_version #{protocol_version}"
+      raise StandardError, "Invalid protocol_version #{@protocol_version}"
     end
 
     keys = AliquotPay::Util.derive_keys(eph.public_key.to_bn.to_s(2), ss, @info, @protocol_version)
@@ -83,27 +82,52 @@ class AliquotPay
     {
       'encryptedMessage'   => Base64.strict_encode64(encrypted_message),
       'ephemeralPublicKey' => Base64.strict_encode64(eph.public_key.to_bn.to_s(2)),
-      'tag'                => Base64.strict_encode64(tag),
+      'tag'                => Base64.strict_encode64(tag)
     }
   end
 
   def build_payment_method_details
     return @payment_method_details if @payment_method_details
+
+    return build_payment_method_details_non_tokenized if @type == :browser
+
+    build_payment_method_details_tokenized
+  end
+
+  def build_payment_method_details_non_tokenized
     value = {
       'pan'             => @pan              || '4111111111111111',
       'expirationYear'  => @expiration_year  || Time.now.year + 1,
-      'expirationMonth' => @expiration_month || 12,
-      'authMethod'      => @auth_method      || 'PAN_ONLY',
+      'expirationMonth' => @expiration_month || 12
     }
 
-    if @auth_method == 'CRYPTOGRAM_3DS'
+    if @protocol_version == :ECv2 && @type == :browser
       value.merge!(
-        'cryptogram'   => @cryptogram    || 'SOME CRYPTOGRAM',
-        'eciIndicator' => @eci_indicator || '05'
+        'authMethod' => @auth_method || 'PAN_ONLY'
       )
     end
-
     value
+  end
+
+  def build_payment_method_details_tokenized
+    value = {
+      'expirationYear'  => @expiration_year  || Time.now.year + 1,
+      'expirationMonth' => @expiration_month || 12,
+      'eciIndicator'    => @eci_indicator    || '05'
+    }
+    if @protocol_version == :ECv1
+      value.merge!(
+        'dpan'          => @pan         || '4111111111111111',
+        'authMethod'    => @auth_method || '3DS',
+        '3dsCryptogram' => @cryptogram  || Base64.strict_encode64(OpenSSL::Random.random_bytes(20))
+      )
+    else
+      value.merge!(
+        'pan'        => @pan         || '4111111111111111',
+        'authMethod' => @auth_method || 'CRYPTOGRAM_3DS',
+        'cryptogram' => @cryptogram  || Base64.strict_encode64(OpenSSL::Random.random_bytes(20))
+      )
+    end
   end
 
   def build_cleartext_message
@@ -114,8 +138,8 @@ class AliquotPay
 
     @cleartext_message = {
       'messageExpiration'    => @message_expiration || default_message_expiration,
-      'messageId'            => @message_id || default_message_id,
-      'paymentMethod'        => @payment_method || 'CARD',
+      'messageId'            => @message_id         || default_message_id,
+      'paymentMethod'        => @payment_method     || 'CARD',
       'paymentMethodDetails' => build_payment_method_details
     }
 
@@ -140,11 +164,12 @@ class AliquotPay
   end
 
   def signed_message_string
-    @signed_message_string ||= build_signed_message.to_json
+    build_signed_message.to_json
   end
 
   def build_signed_key
     return @signed_key if @signed_key
+
     ensure_intermediate_key
 
     if !@intermediate_key.private_key? && !@intermediate_key.public_key?
@@ -156,7 +181,7 @@ class AliquotPay
 
     @signed_key = {
       'keyExpiration' => @key_expiration || default_key_expiration,
-      'keyValue'      => @key_value || default_key_value,
+      'keyValue'      => @key_value      || default_key_value
     }
   end
 
@@ -181,40 +206,49 @@ class AliquotPay
             ensure_intermediate_key
           end
 
-    signature_string =
-      signed_string_message = ['Google',
-                               recipient_id,
-                               @protocol_version.to_s,
-                               signed_message_string].map do |str|
-        [str.length].pack('V') + str
-      end.join
+    signature_elements = [
+      'Google',
+      recipient_id,
+      @protocol_version.to_s,
+      signed_message_string
+    ]
+
+    signature_string = signature_elements.map { |e| [e.length].pack('V') + e }.join
     @signature = sign(key, signature_string)
   end
 
   def build_signatures
     return @signatures if @signatures
 
-    signature_string =
-      signed_key_signature = ['Google', 'ECv2', signed_key_string].map do |str|
-        [str.to_s.length].pack('V') + str.to_s
-      end.join
+    signature_string = ['Google', 'ECv2', signed_key_string].map do |str|
+      [str.to_s.length].pack('V') + str.to_s
+    end.join
 
     @signatures = [sign(ensure_root_key, signature_string)]
   end
 
   def build_token
     return @token if @token
+
+    if @type == :app
+      @auth_method = 'CRYPTOGRAM_3DS'
+      if @protocol_version == :ECv1
+        @auth_method = '3DS'
+        @payment_method = 'TOKENIZED_CARD'
+      end
+    end
+
     res = {
       'protocolVersion' => @protocol_version.to_s,
       'signedMessage'   => @signed_message || signed_message_string,
-      'signature'       => build_signature,
+      'signature'       => build_signature
     }
 
     if @protocol_version == :ECv2
       intermediate = {
         'intermediateSigningKey' => @intermediate_signing_key || {
           'signedKey'  => signed_key_string,
-          'signatures' => build_signatures,
+          'signatures' => build_signatures
         }
       }
 
