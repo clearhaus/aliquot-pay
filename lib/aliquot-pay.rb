@@ -25,7 +25,7 @@ class AliquotPay
   attr_accessor :recipient, :info, :root_key, :intermediate_key
   attr_writer   :recipient_id, :shared_secret, :token, :signed_key_string
 
-  def initialize(protocol_version: :ECv2, root_key: nil, type: :browser)
+  def initialize(protocol_version: :ECv2, root_key: nil, type: :browser, scheme: nil)
     @protocol_version = protocol_version
     @root_key = root_key
     @type = type
@@ -35,6 +35,9 @@ class AliquotPay
         @auth_method = '3DS'
         @payment_method = 'TOKENIZED_CARD'
       end
+    end
+    if scheme == :mastercard
+      @pan = '5500000000000004'
     end
   end
 
