@@ -1,0 +1,16 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: aliquot-pay
+  description: Google Pay test dummy token generator
+  tags:
+    - confidentiality:public
+    - integrity:integrity-neutral
+    - availability:standard
+    - pci-dss:no
+spec:
+  type: library
+  lifecycle: production
+  owner: AEP
+  system: clearhaus
