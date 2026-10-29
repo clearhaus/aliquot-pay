@@ -12,6 +12,7 @@ Gem::Specification.new do |s|
 
   s.files = Dir.glob('lib/**/*.rb')
 
+  s.add_runtime_dependency 'base64',  '~> 0.2'
   s.add_runtime_dependency 'hkdf',    '~> 0.3'
   s.add_runtime_dependency 'aliquot', '~> 3.0'
 
